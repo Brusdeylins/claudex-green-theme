@@ -29,6 +29,8 @@ BG_ADD=22           # Diff "added" / grünlicher Hintergrund -> Dunkelgrün
 BG_MUTED=236        # Diff "removed" / sonstige bunte Hintergründe -> Dunkelgrau
 GREEN_BRIGHT=46     # tmux: aktiv / aktuell
 GREEN_MED=34        # tmux: normale Akzente
+TMUX_MOUSE=on       # tmux mouse: "on" = Rad scrollt immer. Toggle: "C-a m"
+                    #   (Maus aus -> native Terminal-Auswahl/Copy; danach wieder an)
 
 #   ==== statusline ====
 #   claudeX hardcodes an "ase statusline ..." command; we replace it with a
@@ -129,6 +131,9 @@ sed -i '' \
     -e "s/fg=red/fg=colour${GREEN_BRIGHT}/g" \
     -e "s/fg=blue/fg=colour${GREEN_MED}/g" \
     "$basedir/tmux.conf"
+#   mouse: enable by default so the wheel always scrolls ("C-a m" still toggles
+#   it off for native terminal text selection / clipboard copy).
+sed -i '' -E "s/set-option -g mouse (on|off)/set-option -g mouse ${TMUX_MOUSE}/" "$basedir/tmux.conf"
 
 #   ==== 3) statusline ====
 #   claudeX hardcodes an "ase statusline ..." command in claudex.js and forces

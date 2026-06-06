@@ -22,6 +22,8 @@ fresh on each start, invoked right before `claudex` via a shell alias.
   matches Claude's light theme.
 - **Green tmux chrome.** Status bar, pane borders, popups and messages: active /
   current in bright green, the rest in medium green. No red/blue.
+- **Mouse on by default.** The wheel always scrolls; `C-a m` toggles the tmux
+  mouse off for native terminal text selection / clipboard copy, then back on.
 - **Richer status line.** Replaces claudeX' hardcoded `ase statusline` format
   with one showing project · task · **git branch**, model · effort · thinking ·
   **persona**, **session/weekly quota + reset times**, and session cost · elapsed
@@ -97,6 +99,7 @@ BG_ADD=22           # diff "added" / greenish background -> dark green
 BG_MUTED=236        # diff "removed" / other coloured background -> dark grey
 GREEN_BRIGHT=46     # tmux: active / current
 GREEN_MED=34        # tmux: normal accents
+TMUX_MOUSE=on       # tmux mouse: "on" = wheel always scrolls ("C-a m" toggles)
 ```
 
 Preview the green range:
