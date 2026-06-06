@@ -41,9 +41,11 @@ On every run `claudex-theme`:
 2. **overwrites** `ansi-recolor.conf` with per-index rules (chromatic → green,
    neutrals kept, diff backgrounds handled);
 3. **patches** `tmux.conf` in place (`fg=red`/`fg=blue` → green);
-4. **generates** a status-line wrapper (`claudex-statusline` + a small
-   `claudex-month.js` for the monthly figure) and **points claudeX' statusLine
-   at it** by patching `claudex.js`.
+4. **generates** a status-line wrapper (`claudex-statusline` plus small
+   `claudex-usage.js` / `claudex-month.js` helpers) and **points claudeX'
+   statusLine at it** by patching `claudex.js`. The usage line (session/weekly
+   percent **and reset time**) is rendered by us because ase 0.9.0 cannot read
+   Claude's numeric `resets_at` timestamp.
 
 Every step is **idempotent** and only touches the `@rse/claudex` module — never
 your own files.
@@ -106,17 +108,29 @@ for i in $(seq 16 51); do printf '\033[48;5;%dm %3d \033[0m' $i $i; done; echo
 ### Status line
 
 ```sh
-STATUSLINE="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P' '%S %D %W %Q' '%m'"
-STATUSLINE_TAIL="ase statusline -w 0 -m 2 '%c'"
-SHOW_MONTHLY=1      # append "∑ month: $<sum>" via ccusage (needs ccusage)
+STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P'"
+STATUSLINE_MODEL="ase statusline -w 0 -m 2 '%m'"
+STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%c'"
+SHOW_USAGE=1        # render the "session % + reset   weekly % + reset" line
+SHOW_MONTHLY=1      # show "∑ month: $<sum>" (ccusage) inline after the model
 MONTHLY_TTL=300     # seconds between background ccusage refreshes
 ```
 
-Each quoted group is one line. The monthly line is rendered **between**
-`STATUSLINE` and `STATUSLINE_TAIL`, so the default order ends with
-**model → ∑ month → context**. Set `STATUSLINE=""` to leave claudeX' status line
-untouched, `STATUSLINE_TAIL=""` to drop the trailing lines, or `SHOW_MONTHLY=0`
-to drop the monthly line.
+The wrapper renders, top to bottom: `STATUSLINE_TOP` → the usage line →
+`STATUSLINE_MODEL` + monthly cost on **one** line → `STATUSLINE_BOTTOM`. The
+default layout:
+
+```
+⚑ project   ◉ task   ⎇ branch
+⚒ effort   ⚛ thinking   ☯ persona
+⏲ session: 5.0% 2hr 26m   ⏲ weekly: 32.0% 19hr 26m
+⚙ model: Opus 4.8   ∑ month: $1096.42
+◔ context: ██████░░░░░░ 31%
+```
+
+Set any part to `""` to drop it, `SHOW_USAGE=0` / `SHOW_MONTHLY=0` to disable
+those lines. The usage line is rendered by us (not ase) because claudeX' bundled
+`ase` 0.9.0 can't format Claude's numeric `resets_at` timestamp.
 
 Placeholders (`ase statusline`):
 
@@ -156,7 +170,7 @@ Then remove the alias line from `~/.zprofile` and delete
 - `claudex-theme` — the customizer (canonical source; edit here)
 - `install.sh` — installer + alias setup
 - generated at runtime inside the claudeX module: `ansi-recolor.conf`,
-  `claudex-statusline`, `claudex-month.js`
+  `claudex-statusline`, `claudex-usage.js`, `claudex-month.js`
 
 ## License
 
