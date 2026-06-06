@@ -108,29 +108,28 @@ for i in $(seq 16 51); do printf '\033[48;5;%dm %3d \033[0m' $i $i; done; echo
 ### Status line
 
 ```sh
-STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P'"
-STATUSLINE_MODEL="ase statusline -w 0 -m 2 '%m'"
-STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%c'"
+STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c' '%e %t'"
+STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%d'"
 SHOW_USAGE=1        # render the "session % + reset   weekly % + reset" line
-SHOW_MONTHLY=1      # show "∑ month: $<sum>" (ccusage) inline after the model
+SHOW_MONTHLY=1      # append "∑ month: $<sum>" (ccusage) to the END of that line
 MONTHLY_TTL=300     # seconds between background ccusage refreshes
 ```
 
-The wrapper renders, top to bottom: `STATUSLINE_TOP` → the usage line →
-`STATUSLINE_MODEL` + monthly cost on **one** line → `STATUSLINE_BOTTOM`. The
-default layout:
+The wrapper renders, top to bottom: `STATUSLINE_TOP` → the usage line (with the
+monthly cost appended at its end) → `STATUSLINE_BOTTOM`. The default layout:
 
 ```
-⚑ project   ◉ task   ⎇ branch
-⚒ effort   ⚛ thinking   ☯ persona
-⏲ session: 5.0% 2hr 26m   ⏲ weekly: 32.0% 19hr 26m
-⚙ model: Opus 4.8   ∑ month: $1096.42
-◔ context: ██████░░░░░░ 31%
+⚑ project   ☯ persona   ◉ task   ⎇ branch
+⚙ model: Opus 4.8   ◔ context: ██████░░░░░░ 31%
+⚒ effort   ⚛ thinking
+⏲ session: 5.0% (2hr 13m)   ⏲ weekly: 32.0% (19hr 13m)   ∑ month: $1102.11
+▶ cwd: /path/to/project
 ```
 
 Set any part to `""` to drop it, `SHOW_USAGE=0` / `SHOW_MONTHLY=0` to disable
-those lines. The usage line is rendered by us (not ase) because claudeX' bundled
-`ase` 0.9.0 can't format Claude's numeric `resets_at` timestamp.
+those. The usage line is rendered by us (not ase) so the session/weekly reset
+times work regardless of how the bundled `ase` formats Claude's numeric
+`resets_at` timestamp.
 
 Placeholders (`ase statusline`):
 
