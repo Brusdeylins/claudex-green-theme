@@ -111,7 +111,7 @@ for i in $(seq 16 51); do printf '\033[48;5;%dm %3d \033[0m' $i $i; done; echo
 ### Status line
 
 ```sh
-STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c' '%e %t'"
+STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c'"
 STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%d'"
 SHOW_USAGE=1        # render the "session % + reset   weekly % + reset" line
 SHOW_MONTHLY=1      # append "∑ month: $<sum>" (ccusage) to the END of that line
@@ -124,7 +124,6 @@ monthly cost appended at its end) → `STATUSLINE_BOTTOM`. The default layout:
 ```
 ⚑ project   ☯ persona   ◉ task   ⎇ branch
 ⚙ model: Opus 4.8   ◔ context: ██████░░░░░░ 31%
-⚒ effort   ⚛ thinking
 ⏲ session: 5.0% (2hr 13m)   ⏲ weekly: 32.0% (19hr 13m)   ∑ month: $1102.11
 ▶ cwd: /path/to/project
 ```

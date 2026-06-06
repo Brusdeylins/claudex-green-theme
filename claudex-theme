@@ -42,7 +42,7 @@ TMUX_MOUSE=on       # tmux mouse: "on" = Rad scrollt immer. Toggle: "C-a m"
 #       %X cost %H elapsed %c context-bar %e effort %t thinking %P persona %T task
 #       %a/%r lines +/- %d cwd %O style %V version  (%S/%D/%W/%Q exist but the
 #       usage line below renders percent + reset itself). Set any to "" to drop.
-STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c' '%e %t'"
+STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c'"
 STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%d'"
 
 #   usage line: "session %  reset   weekly %  reset", computed from Claude's JSON;
