@@ -53,9 +53,13 @@ your own files.
 ## Requirements
 
 - macOS (uses BSD `sed -i ''`)
-- [claudeX](https://github.com/rse/claudex) with **ASE ≥ 0.9.2** (`ase` /
-  `ansi-recolor`) — 0.9.2 renders the rate-limit reset times (`%D`/`%Q`) and the
-  current-month cost (`%Y`) natively, which this tool's status line relies on.
+- [claudeX](https://github.com/rse/claudex) with `ase` / `ansi-recolor`
+
+> **Note:** The status line currently relies on two ASE changes that are still
+> **open pull requests** (not yet in a released ASE version): the numeric
+> `resets_at` fix for the reset times (`%D`/`%Q`) and the new current-month cost
+> placeholder (`%Y`). Until those are merged and released, this tool only works
+> with an ASE build that includes both PRs.
 
 ## Install
 
