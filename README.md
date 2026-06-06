@@ -25,13 +25,10 @@ fresh on each start, invoked right before `claudex` via a shell alias.
 - **Mouse on by default.** The wheel always scrolls; `C-a m` toggles the tmux
   mouse off for native terminal text selection / clipboard copy, then back on.
 - **Richer status line.** Replaces claudeX' hardcoded `ase statusline` format
-  with one showing project · task · **git branch**, model · effort · thinking ·
-  **persona**, **session/weekly quota + reset times**, and session cost · elapsed
-  · context.
-- **Monthly cost (optional).** Appends a `∑ month: $…` line with your total cost
-  for the current month across **all** sessions, computed by
-  [`ccusage`](https://github.com/ryoppippi/ccusage) and refreshed in the
-  **background** (never blocks the status line).
+  with one showing project · persona · task · **git branch**, model · context,
+  **session/weekly usage % + reset times**, **current-month total cost** (all
+  sessions), and the working directory — all rendered natively by ASE 0.9.2+,
+  so no wrapper, helper scripts, or extra dependencies.
 
 ## How it works
 
@@ -43,11 +40,9 @@ On every run `claudex-theme`:
 2. **overwrites** `ansi-recolor.conf` with per-index rules (chromatic → green,
    neutrals kept, diff backgrounds handled);
 3. **patches** `tmux.conf` in place (`fg=red`/`fg=blue` → green);
-4. **generates** a status-line wrapper (`claudex-statusline` plus small
-   `claudex-usage.js` / `claudex-month.js` helpers) and **points claudeX'
-   statusLine at it** by patching `claudex.js`. The usage line (session/weekly
-   percent **and reset time**) is rendered by us because ase 0.9.0 cannot read
-   Claude's numeric `resets_at` timestamp.
+4. **rewrites** the `ase statusline` command claudeX hardcodes in `claudex.js`
+   to our format (single command — ASE 0.9.2+ renders reset times and the
+   monthly cost natively, so no wrapper or helper scripts are needed).
 
 Every step is **idempotent** and only touches the `@rse/claudex` module — never
 your own files.
@@ -57,10 +52,10 @@ your own files.
 
 ## Requirements
 
-- macOS (uses BSD `sed -i ''` and `stat -f`)
-- [claudeX](https://github.com/rse/claudex) and its `ase` / `ansi-recolor` tools
-- [`ccusage`](https://github.com/ryoppippi/ccusage) — optional, only for the
-  monthly cost line: `npm i -g ccusage`
+- macOS (uses BSD `sed -i ''`)
+- [claudeX](https://github.com/rse/claudex) with **ASE ≥ 0.9.2** (`ase` /
+  `ansi-recolor`) — 0.9.2 renders the rate-limit reset times (`%D`/`%Q`) and the
+  current-month cost (`%Y`) natively, which this tool's status line relies on.
 
 ## Install
 
@@ -111,48 +106,38 @@ for i in $(seq 16 51); do printf '\033[48;5;%dm %3d \033[0m' $i $i; done; echo
 ### Status line
 
 ```sh
-STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c'"
-STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%d'"
-SHOW_USAGE=1        # render the "session % + reset   weekly % + reset" line
-SHOW_MONTHLY=1      # append "∑ month: $<sum>" (ccusage) to the END of that line
-MONTHLY_TTL=300     # seconds between background ccusage refreshes
+MONTH_COST_TTL=300   # ase --month-cost-ttl: seconds to cache %Y (background refresh)
+STATUSLINE="ase statusline --month-cost-ttl ${MONTH_COST_TTL} -w 0 -m 2 '%p %P %T %b' '%m %c' '%S %D %W %Q %Y' '%d'"
 ```
 
-The wrapper renders, top to bottom: `STATUSLINE_TOP` → the usage line (with the
-monthly cost appended at its end) → `STATUSLINE_BOTTOM`. The default layout:
+A single `ase statusline` command; each quoted group is one line. Default layout:
 
 ```
 ⚑ project   ☯ persona   ◉ task   ⎇ branch
 ⚙ model: Opus 4.8   ◔ context: ██████░░░░░░ 31%
-⏲ session: 5.0% (2hr 13m)   ⏲ weekly: 32.0% (19hr 13m)   ∑ month: $1102.11
+⏲ session-usage: 5.0%   ⏱ session-resets: 2hr 13m   ⏲ weekly-usage: 32.0%   ⏱ weekly-resets: 19hr 13m   ∑ month: $1102.11
 ▶ cwd: /path/to/project
 ```
 
-Set any part to `""` to drop it, `SHOW_USAGE=0` / `SHOW_MONTHLY=0` to disable
-those. The usage line is rendered by us (not ase) so the session/weekly reset
-times work regardless of how the bundled `ase` formats Claude's numeric
-`resets_at` timestamp.
-
-Placeholders (`ase statusline`):
+Set `STATUSLINE=""` to leave claudeX' status line untouched, or reorder/drop any
+placeholder. Placeholders (`ase statusline`, ASE 0.9.2+):
 
 | code | meaning | code | meaning |
 |------|---------|------|---------|
 | `%p` | project | `%S` | session usage % |
-| `%T` | task | `%D` | session reset in |
-| `%b` | git branch | `%W` | weekly usage % |
-| `%m` | model | `%Q` | weekly reset in |
-| `%e` | effort | `%X` | session cost |
-| `%t` | thinking | `%H` | elapsed |
-| `%P` | persona | `%c` | context bar |
-| `%u` | user | `%C` | tokens |
-| `%a`/`%r` | lines +/- | `%g`/`%G` | git changed / untracked |
-| `%d` | cwd | `%M` | memory |
+| `%P` | persona | `%D` | session reset in |
+| `%T` | task | `%W` | weekly usage % |
+| `%b` | git branch | `%Q` | weekly reset in |
+| `%m` | model | `%Y` | **current-month total cost** |
+| `%c` | context bar | `%X` | session cost |
+| `%e` | effort | `%H` | elapsed |
+| `%t` | thinking | `%a`/`%r` | lines +/- |
+| `%d` | cwd | `%g`/`%G` | git changed / untracked |
+| `%u` | user | `%M` | memory |
 | `%O` | output style | `%V` | version |
 
-> `ase statusline` has **no config** for the format — it is purely CLI-arg-driven
-> and claudeX hardcodes it — which is why this tool rewrites it. There is also no
-> monthly cost in `ase` (`%X` is the current session only); that is what the
-> `ccusage` line adds.
+> `ase statusline` has no config file for the format — it is CLI-arg-driven and
+> claudeX hardcodes it — which is why this tool rewrites the command string.
 
 ## Restore the original claudeX
 
@@ -170,8 +155,8 @@ Then remove the alias line from `~/.zprofile` and delete
 
 - `claudex-theme` — the customizer (canonical source; edit here)
 - `install.sh` — installer + alias setup
-- generated at runtime inside the claudeX module: `ansi-recolor.conf`,
-  `claudex-statusline`, `claudex-usage.js`, `claudex-month.js`
+- generated/patched at runtime inside the claudeX module: `ansi-recolor.conf`
+  (regenerated), `tmux.conf` + `claudex.js` (patched in place)
 
 ## License
 

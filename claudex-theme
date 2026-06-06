@@ -33,29 +33,17 @@ TMUX_MOUSE=on       # tmux mouse: "on" = Rad scrollt immer. Toggle: "C-a m"
                     #   (Maus aus -> native Terminal-Auswahl/Copy; danach wieder an)
 
 #   ==== statusline ====
-#   claudeX hardcodes an "ase statusline ..." command; we replace it with a
-#   wrapper that renders, top to bottom:
-#       STATUSLINE_TOP        (ase lines)
-#       usage line + month    (session/weekly % + RESET time, then monthly cost)
-#       STATUSLINE_BOTTOM     (ase lines)
-#   ase statusline placeholders: %u user %p project %b git-branch %m model
-#       %X cost %H elapsed %c context-bar %e effort %t thinking %P persona %T task
-#       %a/%r lines +/- %d cwd %O style %V version  (%S/%D/%W/%Q exist but the
-#       usage line below renders percent + reset itself). Set any to "" to drop.
-STATUSLINE_TOP="ase statusline -w 0 -m 2 '%p %P %T %b' '%m %c'"
-STATUSLINE_BOTTOM="ase statusline -w 0 -m 2 '%d'"
-
-#   usage line: "session %  reset   weekly %  reset", computed from Claude's JSON;
-#   the monthly cost (if enabled) is appended to the END of this line.
-SHOW_USAGE=1        # 1 = render the usage+reset line ourselves; 0 = off
-
-#   ==== monthly cost (via ccusage) ====
-#   ase has no all-sessions/monthly cost; ccusage computes it from Claude's logs.
-#   The value is cached and refreshed in the BACKGROUND (never blocks the
-#   statusline) and shown inline after the model. Needs "ccusage"
-#   (npm i -g ccusage). Set SHOW_MONTHLY=0 to disable.
-SHOW_MONTHLY=1      # 1 = append "∑ month: $<sum>" after the model; 0 = off
-MONTHLY_TTL=300     # seconds between background ccusage refreshes
+#   claudeX hardcodes an "ase statusline ..." command and forces it onto Claude
+#   Code via --settings. We just rewrite that command to our format -- ASE 0.9.2+
+#   renders everything we need natively, so NO wrapper / helper scripts / ccusage.
+#   Each quoted group is one line. Placeholders:
+#       %p project %P persona %T task %b git-branch %m model %c context-bar
+#       %S/%W session/weekly usage%  %D/%Q their reset time (numeric ts, since 0.9.2)
+#       %Y current-month total cost (all sessions; cached, see MONTH_COST_TTL)
+#       %e effort %t thinking %X session cost %H elapsed %a/%r lines +/- %d cwd
+#   Set STATUSLINE="" to leave claudeX' status line untouched.
+MONTH_COST_TTL=300   # ase --month-cost-ttl: seconds to cache %Y (background refresh)
+STATUSLINE="ase statusline --month-cost-ttl ${MONTH_COST_TTL} -w 0 -m 2 '%p %P %T %b' '%m %c' '%S %D %W %Q %Y' '%d'"
 
 #   ==== locate the installed claudeX module directory ====
 basedir=""
@@ -135,111 +123,18 @@ sed -i '' \
 #   it off for native terminal text selection / clipboard copy).
 sed -i '' -E "s/set-option -g mouse (on|off)/set-option -g mouse ${TMUX_MOUSE}/" "$basedir/tmux.conf"
 
-#   ==== 3) statusline ====
-#   claudeX hardcodes an "ase statusline ..." command in claudex.js and forces
-#   it onto Claude Code via --settings (ase has NO config for the format). We
-#   generate a wrapper (plus tiny JS helpers) and point claudeX' statusLine at
-#   it. Idempotent: re-runs and post-update restores both re-match cleanly.
-wrapper="$basedir/claudex-statusline"
-node_bin="$(command -v node || echo node)"
-ccusage_bin="$(command -v ccusage || true)"
-
-#   3a) usage-line renderer (session/weekly % + RESET time). ase 0.9.0 cannot
-#   render Claude's numeric "resets_at" timestamp, so we compute it ourselves.
-if [ "$SHOW_USAGE" = "1" ]; then
-    cat > "$basedir/claudex-usage.js" <<'JS'
-let s = ""
-process.stdin.on("data", (d) => s += d)
-process.stdin.on("end", () => {
-    try {
-        const j  = JSON.parse(s)
-        const rl = j.rate_limits || {}
-        const now = Date.now() / 1000
-        const left = (ts) => {
-            if (!ts) return ""
-            let m = Math.floor((ts - now) / 60)
-            if (m <= 0) return ""
-            const d = Math.floor(m / 1440); m -= d * 1440
-            const h = Math.floor(m / 60);   m -= h * 60
-            return d > 0 ? `${d}d ${h}h` : `${h}hr ${m}m`
-        }
-        const seg = (label, o) => {
-            if (!o || o.used_percentage === undefined) return ""
-            let t = `${label}: \x1b[1m${o.used_percentage.toFixed(1)}%\x1b[22m`
-            const r = left(o.resets_at)
-            if (r) t += ` \x1b[2m(${r})\x1b[22m`
-            return t
-        }
-        const segs = [ seg("⏲ session", rl.five_hour), seg("⏲ weekly", rl.seven_day) ].filter(Boolean)
-        if (segs.length) process.stdout.write(segs.join("   ") + "\n")
-    }
-    catch (_) { /* no rate_limits -> no usage line */ }
-})
-JS
-fi
-
-#   3b) monthly-cost parser (separate JS file -> no shell-quoting issues)
-if [ "$SHOW_MONTHLY" = "1" ] && [ -n "$ccusage_bin" ]; then
-    cat > "$basedir/claudex-month.js" <<'JS'
-let s = ""
-process.stdin.on("data", (d) => s += d)
-process.stdin.on("end", () => {
-    try {
-        const j = JSON.parse(s)
-        const m = new Date().toISOString().slice(0, 7)
-        const e = (j.monthly || []).find((x) => x.period === m)
-        if (e)
-            process.stdout.write("∑ month: \x1b[1m$" + e.totalCost.toFixed(2) + "\x1b[22m")
-    }
-    catch (_) { /* no ccusage data -> no monthly figure */ }
-})
-JS
-fi
-
-#   3c) wrapper script -- assembled top to bottom
-{
-    echo '#!/usr/bin/env bash'
-    echo '#  generated by claudex-theme -- do not edit; edit claudex-theme + re-run ./install.sh'
-    echo 'input=$(cat)'
-    [ -n "$STATUSLINE_TOP" ] && echo "printf '%s' \"\$input\" | $STATUSLINE_TOP"
-    #   kick off the background monthly refresh
-    if [ "$SHOW_MONTHLY" = "1" ] && [ -n "$ccusage_bin" ]; then
-        echo "cache=\"\${TMPDIR:-/tmp}/claudex-month-cost\""
-        echo "now=\$(date +%s); mtime=\$(stat -f %m \"\$cache\" 2>/dev/null || echo 0)"
-        echo "if [ \$(( now - mtime )) -gt $MONTHLY_TTL ]; then"
-        echo "  ( \"$ccusage_bin\" monthly --json 2>/dev/null | \"$node_bin\" \"$basedir/claudex-month.js\" > \"\$cache.tmp\" 2>/dev/null && mv \"\$cache.tmp\" \"\$cache\" ) >/dev/null 2>&1 &"
-        echo "fi"
-    fi
-    #   usage line with the monthly cost appended at its end
-    if [ "$SHOW_USAGE" = "1" ] || { [ "$SHOW_MONTHLY" = "1" ] && [ -n "$ccusage_bin" ]; }; then
-        if [ "$SHOW_USAGE" = "1" ]; then
-            echo "usage=\$(printf '%s' \"\$input\" | \"$node_bin\" \"$basedir/claudex-usage.js\")"
-        else
-            echo "usage=\"\""
-        fi
-        if [ "$SHOW_MONTHLY" = "1" ] && [ -n "$ccusage_bin" ]; then
-            echo "month=\"\"; [ -s \"\$cache\" ] && month=\$(cat \"\$cache\")"
-        else
-            echo "month=\"\""
-        fi
-        echo "if [ -n \"\$usage\" ] && [ -n \"\$month\" ]; then printf '%s   %s\\n' \"\$usage\" \"\$month\""
-        echo "elif [ -n \"\$usage\" ]; then printf '%s\\n' \"\$usage\""
-        echo "elif [ -n \"\$month\" ]; then printf '%s\\n' \"\$month\"; fi"
-    fi
-    [ -n "$STATUSLINE_BOTTOM" ] && echo "printf '%s' \"\$input\" | $STATUSLINE_BOTTOM"
-} > "$wrapper"
-chmod +x "$wrapper"
-
-#   3d) point claudeX' statusLine at the wrapper (matches the stock
-#   "ase statusline ..." OR an already-patched wrapper path)
-for jsf in "$basedir/claudex.js" "$basedir/claude-settings.json"; do
-    [ -f "$jsf" ] && sed -i '' -E \
-        "s#(\"command\": \")(ase statusline[^\"]*|[^\"]*claudex-statusline)(\")#\1${wrapper}\3#" \
-        "$jsf"
-done
-
-if [ "$SHOW_MONTHLY" = "1" ] && [ -z "$ccusage_bin" ]; then
-    echo "claudex-theme: NOTE: SHOW_MONTHLY=1 but 'ccusage' not found -- run 'npm i -g ccusage' for the monthly cost" >&2
+#   ==== 3) statusline -- patch claudeX' hardcoded command (idempotent) ====
+#   Everything is native in ASE 0.9.2+, so just rewrite the "command" string.
+#   Also remove wrapper / helper artefacts from earlier tool versions.
+rm -f "$basedir/claudex-statusline" "$basedir/claudex-usage.js" "$basedir/claudex-month.js"
+if [ -n "$STATUSLINE" ]; then
+    #   matches the stock "ase statusline ..." OR an already-patched value
+    #   (current command, or a legacy wrapper path ending in claudex-statusline)
+    for jsf in "$basedir/claudex.js" "$basedir/claude-settings.json"; do
+        [ -f "$jsf" ] && sed -i '' -E \
+            "s#(\"command\": \")(ase statusline[^\"]*|[^\"]*claudex-statusline)(\")#\1${STATUSLINE}\3#" \
+            "$jsf"
+    done
 fi
 
 exit 0
