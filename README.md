@@ -106,13 +106,17 @@ for i in $(seq 16 51); do printf '\033[48;5;%dm %3d \033[0m' $i $i; done; echo
 ### Status line
 
 ```sh
-STATUSLINE="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P' '%S %D %W %Q' '%c %m'"
+STATUSLINE="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P' '%S %D %W %Q' '%m'"
+STATUSLINE_TAIL="ase statusline -w 0 -m 2 '%c'"
 SHOW_MONTHLY=1      # append "∑ month: $<sum>" via ccusage (needs ccusage)
 MONTHLY_TTL=300     # seconds between background ccusage refreshes
 ```
 
-Each quoted group is one line. Set `STATUSLINE=""` to leave claudeX' status line
-untouched, or `SHOW_MONTHLY=0` to drop the monthly line.
+Each quoted group is one line. The monthly line is rendered **between**
+`STATUSLINE` and `STATUSLINE_TAIL`, so the default order ends with
+**model → ∑ month → context**. Set `STATUSLINE=""` to leave claudeX' status line
+untouched, `STATUSLINE_TAIL=""` to drop the trailing lines, or `SHOW_MONTHLY=0`
+to drop the monthly line.
 
 Placeholders (`ase statusline`):
 

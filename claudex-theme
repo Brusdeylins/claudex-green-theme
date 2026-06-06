@@ -30,11 +30,15 @@ BG_MUTED=236        # Diff "removed" / sonstige bunte Hintergründe -> Dunkelgra
 GREEN_BRIGHT=46     # tmux: aktiv / aktuell
 GREEN_MED=34        # tmux: normale Akzente
 
-#   ==== statusline (was claudeX zeigt -- 3 Template-Zeilen für "ase statusline") ====
+#   ==== statusline (was claudeX zeigt -- Template-Zeilen für "ase statusline") ====
 #   Platzhalter: %u user  %p project  %b git-branch  %m model  %X cost  %H elapsed
 #   %c context-bar  %S session-usage%  %D session-reset  %W weekly-usage%  %Q weekly-reset
 #   %a/%r lines +/-  %d cwd  %V version  (set STATUSLINE="" to disable patching)
-STATUSLINE="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P' '%S %D %W %Q' '%c %m'"
+#   The monthly-cost line (if enabled) is rendered BETWEEN STATUSLINE and
+#   STATUSLINE_TAIL -- so STATUSLINE ends with the model, then "∑ month", then
+#   STATUSLINE_TAIL shows the context. Result order: ... model / month / context.
+STATUSLINE="ase statusline -w 0 -m 2 '%p %T %b' '%e %t %P' '%S %D %W %Q' '%m'"
+STATUSLINE_TAIL="ase statusline -w 0 -m 2 '%c'"
 
 #   ==== monthly cost (extra statusline line via ccusage) ====
 #   ase has no all-sessions/monthly cost; ccusage computes it from Claude's logs.
@@ -161,6 +165,7 @@ JS
             echo "fi"
             echo "[ -s \"\$cache\" ] && cat \"\$cache\""
         fi
+        [ -n "$STATUSLINE_TAIL" ] && echo "printf '%s' \"\$input\" | $STATUSLINE_TAIL"
     } > "$wrapper"
     chmod +x "$wrapper"
 
